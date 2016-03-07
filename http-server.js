@@ -35,7 +35,7 @@ var CSP = function (req, config) {
     "object-src 'none'; "+
     "frame-src 'none'; "+
     "style-src 'self' 'unsafe-inline'; "+
-    "sandbox allow-modals allow-same-origin allow-scripts allow-top-navigation allow-popups"
+    "sandbox allow-modals allow-scripts allow-top-navigation allow-popups"
 }
 
 // string response helper
