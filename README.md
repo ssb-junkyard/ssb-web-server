@@ -28,7 +28,9 @@ The server also hosts static files at `./www/*`.
 
 ## TODO
 
-Hash-ids are going to change during dev, so we need a way to make it easy to develop some site/app, then publish, without introducing bugs.
+- Hash-ids are going to change during dev, so we need a way to make it easy to develop some site/app, then publish, without introducing bugs.
+- Sites/apps are going to be more interesting if they can access some of Sbot's APIs. We can expose an RPC connection via a Websocket, but we'll need to create a scheme for controlling permissions, safely.
+- Related, we need to ensure that each page is properly sandboxed from the others, and cant leak info or creds. This should be doable per-page.
 
 ## Example page
 
