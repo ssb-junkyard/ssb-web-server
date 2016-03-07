@@ -22,7 +22,7 @@ Or use as a scuttlebot plugin:
 
 ## Usage
 
-This creates a server at `localhost:8000`. It will serve any blobs, by hash-id, at `localhost:8000/{hash-id}`. (Example: http://localhost:8000/&MagGWkFGCb7PxQOVAD4+UULNDtW+x3BIIgSGfxAomHs=.sha256). If the blob is not locally-present, it will search the SSB network (using the `want` protocol) and respond when the blob is found.
+This creates a server at `localhost:8000`. It will serve any blobs, by hash-id, at `localhost:8000/{hash-id}`. (Example: `http://localhost:8000/&MagGWkFGCb7PxQOVAD4+UULNDtW+x3BIIgSGfxAomHs=.sha256`). If the blob is not locally-present, the server will search the SSB network (using the `want` protocol) and respond when the blob is found.
 
 The server also hosts static files at `./www/*`.
 
