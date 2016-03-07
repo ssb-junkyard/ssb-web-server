@@ -40,7 +40,7 @@ Add this index.html to your `www`
 <html>
 <body>
   <h1>Hello, world</h1>
-  <img src="/&xwYBP2fBpyobN19U5RO+f9BwxwX/BWOAxXJ2Q8S9W+0=.sha256">
+  <img src="&xwYBP2fBpyobN19U5RO+f9BwxwX/BWOAxXJ2Q8S9W+0=.sha256">
 </body>
 </html>
 ```
