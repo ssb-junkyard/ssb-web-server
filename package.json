@@ -1,0 +1,23 @@
+{
+  "name": "ssb-web-server",
+  "version": "1.0.0",
+  "description": "Serve web sites on scuttlebot",
+  "main": "index.js",
+  "dependencies": {
+    "ip": "^1.1.2",
+    "mime-types": "^2.1.10",
+    "pull-cat": "^1.1.9",
+    "pull-identify-filetype": "^1.0.2",
+    "pull-stream": "^3.2.0",
+    "ssb-client": "^3.0.1",
+    "ssb-ref": "^2.3.0",
+    "stack": "^0.1.0",
+    "stream-to-pull-stream": "^1.6.6"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Paul Fraze <pfrazee@gmail.com>",
+  "license": "MIT"
+}
