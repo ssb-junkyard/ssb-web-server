@@ -6,9 +6,12 @@
   "dependencies": {
     "ip": "^1.1.2",
     "mime-types": "^2.1.10",
+    "muxrpc": "^6.2.1",
     "pull-cat": "^1.1.9",
     "pull-identify-filetype": "^1.0.2",
+    "pull-serializer": "^0.3.2",
     "pull-stream": "^3.2.0",
+    "pull-ws-server": "^1.5.0",
     "ssb-client": "^3.0.1",
     "ssb-ref": "^2.3.0",
     "stack": "^0.1.0",

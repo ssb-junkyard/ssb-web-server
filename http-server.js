@@ -30,10 +30,11 @@ var CSP = function (req, config) {
   }
 
   return "default-src 'self'; "+
-    "connect-src 'self' ws://"+host+":7778 wss://"+host+":7778; "+
+    "connect-src 'self' ws://"+host+":7999 wss://"+host+":7999; "+
     "img-src 'self' data:; "+
     "object-src 'none'; "+
     "frame-src 'none'; "+
+    "script-src 'self' 'unsafe-inline'; "+
     "style-src 'self' 'unsafe-inline'; "+
     "sandbox allow-modals allow-scripts allow-top-navigation allow-popups"
 }
