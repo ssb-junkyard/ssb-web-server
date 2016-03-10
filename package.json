@@ -1,6 +1,6 @@
 {
   "name": "ssb-web-server",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "Serve web sites on scuttlebot",
   "main": "index.js",
   "dependencies": {
