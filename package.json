@@ -7,6 +7,7 @@
     "ip": "^1.1.2",
     "mime-types": "^2.1.10",
     "muxrpc": "^6.2.1",
+    "open": "0.0.5",
     "pull-cat": "^1.1.9",
     "pull-identify-filetype": "^1.1.0",
     "pull-serializer": "^0.3.2",
