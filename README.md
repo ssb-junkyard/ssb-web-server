@@ -1,7 +1,6 @@
 # SSB Web Server
 
 A [Scuttlebot](https://github.com/ssbc/scuttlebot) plugin for serving sites that were shared using SSB.
-Still in development.
 
 ## Setup
 
