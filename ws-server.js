@@ -5,8 +5,27 @@ var Serializer = require('pull-serializer')
 // platform-specific opener
 var open
 if (process.versions['electron']) {
-  var shell = require('electron').shell
-  open = shell.openExternal.bind(shell)
+  var BrowserWindow = require('electron').BrowserWindow
+  open = function (url) {
+    var win = new BrowserWindow({
+      width: 750,
+      height: 480,
+      webPreferences: {
+        nodeIntegration: false,
+        javascript: true,
+        webSecurity: true,
+        images: true,
+        java: false,
+        webgl: false, 
+        webaudio: false,
+        plugins: false,
+        experimentalFeatures: false,
+        experimentalCanvasFeatures: false,
+        sharedWorker: false
+      }
+    })
+    win.loadURL(url)
+  }
 } else {
   open = require('open')
 }
