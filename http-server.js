@@ -10,8 +10,40 @@ var refs   = require('ssb-ref')
 var Stack  = require('stack')
 var ip     = require('ip')
 
-// Content-Security Policy header function
-var CSP = function (req, config) {
+// Content-Security Policy header function, for the trusted application (7777)
+var TrustedCSP = function (sbot, config) {
+  return function (req, res, next) {
+    var host = getCSPHost(req, config)
+    var CSP = "default-src 'self'; "+
+      "connect-src 'self' ws://"+host+":7777 wss://"+host+":7777; "+
+      "img-src 'self' http://"+host+":7778 https://"+host+":7778 data:; "+ // include 7778 to show blob images
+      "object-src 'none'; "+
+      "frame-src 'none'; "+
+      "style-src 'self' 'unsafe-inline'; "+
+      "sandbox allow-modals allow-same-origin allow-scripts allow-top-navigation allow-popups"
+    res.setHeader('Content-Security-Policy', CSP)
+    next()
+  }
+}
+
+// Content-Security Policy header function, for userland (7778)
+var UserlandCSP = function (sbot, config) {
+  return function (req, res, next) {
+    var host = getCSPHost(req, config)
+    var CSP = "default-src 'self'; "+
+      "connect-src 'self' ws://"+host+":7778 wss://"+host+":7778; "+
+      "img-src 'self' data:; "+
+      "object-src 'none'; "+
+      "frame-src 'none'; "+
+      "script-src 'self' 'unsafe-inline'; "+
+      "style-src 'self' 'unsafe-inline'; "+
+      "sandbox allow-modals allow-same-origin allow-scripts allow-top-navigation allow-popups"
+    res.setHeader('Content-Security-Policy', CSP)
+    next()
+  }
+}
+
+function getCSPHost (req, config) {
   // hostname for the websocket connection:
   // if it's a remote request, always use the configured hostname
   // if it's local, choose from localhost or the configured hostname, based on which the client is using (as revealed by the host header)
@@ -28,15 +60,7 @@ var CSP = function (req, config) {
     if (requestHostname == '127.0.0.1' && host == 'localhost')
       host = '127.0.0.1'
   }
-
-  return "default-src 'self'; "+
-    "connect-src 'self' ws://"+host+":7999 wss://"+host+":7999; "+
-    "img-src 'self' data:; "+
-    "object-src 'none'; "+
-    "frame-src 'none'; "+
-    "script-src 'self' 'unsafe-inline'; "+
-    "style-src 'self' 'unsafe-inline'; "+
-    "sandbox allow-modals allow-scripts allow-top-navigation allow-popups"
+  return host
 }
 
 // string response helper
@@ -46,27 +70,31 @@ function respond (res, status, message) {
 }
 
 // source-stream response helper
-function respondSource (res, source, wrap) {
-  if(wrap) {
-    res.writeHead(200, {'Content-Type': 'text/html'})
-    pull(
-      cat([
-        pull.once('<html><body><script>'),
-        source,
-        pull.once('</script></body></html>')
-      ]),
-      toPull.sink(res)
-    )
-  }
-  else {
-    pull(
-      source,
-      ident(function (type) {
-        if (type) res.writeHead(200, {'Content-Type': mime.lookup(type)})
-      }),
-      toPull.sink(res)
-    )
-  }
+var frontMatter = new Buffer(
+  '<!-- Begin Scuttlebot injected front-matter: -->\n'+
+  '<script src="/ssb.js"></script>\n'+
+  '<!-- End Scuttlebot front-matter -->\n'
+, 'utf-8')
+function respondSource (res, source) {
+  var type, hasInjectedFrontmatter = false
+  pull(
+    source,
+    ident(function (_type) {
+      type = _type
+
+      // write content type header
+      if (type) res.writeHead(200, {'Content-Type': mime.lookup(type)})
+    }),
+    pull.map(function (chunk) {
+      // inject the front-matter if this is html
+      if (type == 'html' && !hasInjectedFrontmatter) {
+        hasInjectedFrontmatter = true
+        return Buffer.concat([frontMatter, chunk])
+      }
+      return chunk
+    }),
+    toPull.sink(res)
+  )
 }
 
 // logging tool
@@ -110,23 +138,25 @@ var PasswordAccessControl = exports.PasswordAccessControl = function (config) {
 }
 
 // serve static files
-var ServeApp = exports.ServeApp = function (sbot, config) {
+var ServeFiles = exports.ServeFiles = function (sbot, config, opts) {
   return function (req, res, next) {
     var parsed = URL.parse(req.url, true)
     var pathname = parsed.pathname
-    if (pathname == '/')
-      pathname = '/index.html'
+    if (pathname.slice(-1) == '/')
+      pathname += 'index.html'
 
-    // security settings
-    res.setHeader('Content-Security-Policy', CSP(req, config))
-
-    // dynamic route: manifest.js
-    if (pathname == '/manifest.js') {
-      return respondSource(res, pull.once('window.MANIFEST='+JSON.stringify(sbot.manifest())+';'))
-    } 
+    // dynamic routes
+    if (pathname == '/ssb.js') {
+      return respondSource(res, 
+        cat([
+          pull.once('window.SSB_MANIFEST='+JSON.stringify(opts.manifest)+';'),
+          toPull.source(fs.createReadStream(path.join(__dirname, 'ws-client.build.js')))
+        ])
+      )
+    }
 
     // static files
-    var filepath = path.join(config.getServePath(), pathname)
+    var filepath = path.join(opts.servePath, pathname)
     fs.stat(filepath, function (err, stat) {
       if(err) return next()
       if(!stat.isFile()) return respond(res, 403, 'May only load files')
@@ -140,6 +170,10 @@ var ServeBlobs = exports.ServeBlobs = function (sbot, config) {
   return function (req, res, next) {
     var parsed = URL.parse(req.url, true)
     var hash = decodeURIComponent(parsed.pathname.slice(1))
+
+    if (!refs.isLink(hash))
+      return next()
+
     sbot.blobs.want(hash, function(err, has) {
       if (!has) return respond(res, 404, 'File not found')
 
@@ -149,19 +183,36 @@ var ServeBlobs = exports.ServeBlobs = function (sbot, config) {
         // res.setHeader('Content-Disposition', 'inline; filename='+encodeURIComponent(parsed.query.name))
 
       // serve
-      res.setHeader('Content-Security-Policy', CSP(req, config))
       respondSource(res, sbot.blobs.get(hash), false)
     })
   }
 }
 
-// full stack
-exports.AppStack = function (sbot, config) {
+// trusted app server (7777)
+exports.Trusted = function (sbot, config) {
   return Stack(
     Log(sbot),
+    TrustedCSP(sbot, config),
     PasswordAccessControl(config),
     DeviceAccessControl(config),
-    ServeApp(sbot, config),
-    ServeBlobs(sbot, config)
+    ServeFiles(sbot, config, {
+      servePath: config.getTrustedServePath(),
+      manifest: config.getTrustedManifest(sbot)
+    })
+  )
+}
+
+// userland app server (7778)
+exports.Userland = function (sbot, config) {
+  return Stack(
+    Log(sbot),
+    UserlandCSP(sbot, config),
+    PasswordAccessControl(config),
+    DeviceAccessControl(config),
+    ServeBlobs(sbot, config),
+    ServeFiles(sbot, config, {
+      servePath: config.getUserlandServePath(),
+      manifest: config.getUserlandManifest(sbot)
+    })
   )
 }

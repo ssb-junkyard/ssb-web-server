@@ -2,23 +2,6 @@ var http = require('http')
 var https = require('https')
 var ws = require('pull-ws-server')
 
-
-// node index.js:
-if (!module.parent) {
-  // TODO load config
-
-  // connect to scuttlebot via rpc
-  require('ssb-client')(function (err, sbot) {
-    if (err) throw err
-    // run
-    module.exports(sbot, {})
-
-    // HACK - keep the connection alive
-    setInterval(sbot.whoami, 10e3)
-  })
-}
-
-
 module.exports = function (sbot, config) {
   // validate the config
   config = require('./config')(config)
@@ -35,29 +18,40 @@ module.exports = function (sbot, config) {
 
   // setup server
   var httpStack = require('./http-server')
-  var httpServerFn = httpStack.AppStack(sbot, config)
-  var wsServerFn = require('./ws-server')(sbot)
+  var httpTrustedServerFn = httpStack.Trusted(sbot, config)
+  var httpUserlandServerFn = httpStack.Userland(sbot, config)
+  var wsTrustedServerFn = require('./ws-server').Trusted(sbot, config)
+  var wsUserlandServerFn = require('./ws-server').Userland(sbot, config)
 
+  var appServer, blobServer
   if (config.useTLS()) {
     // HTTPS
     var tlsOpts = config.getTLS()
-    https.createServer(tlsOpts, httpServerFn).listen(8000).on('error', fatalError)
-    ws.createServer(tlsOpts, wsServerFn).listen(7999).on('error', fatalError)
-    console.log('Serving at https://localhost:8000')
-    console.log('Serving at wss://localhost:7999')
+    appServer = ws.createServer(tlsOpts)
+    blobServer = ws.createServer(tlsOpts)
+    console.log('Serving at https://localhost:7777')
+    console.log('Serving at https://localhost:7778')
   } else {
     // HTTP
-    http.createServer(httpServerFn).listen(8000).on('error', fatalError)
-    ws.createServer(wsServerFn).listen(7999).on('error', fatalError)
-    console.log('Serving at http://localhost:8000')
-    console.log('Serving at ws://localhost:7999')
+    appServer = ws.createServer()
+    blobServer = ws.createServer()
+    console.log('Serving at http://localhost:7777')
+    console.log('Serving at http://localhost:7778')
   }
+  appServer.on('connection', wsTrustedServerFn)
+  appServer.on('request', httpTrustedServerFn)
+  appServer.on('error', fatalError)
+  appServer.listen(7777)
+  blobServer.on('connection', wsUserlandServerFn)
+  blobServer.on('request', httpUserlandServerFn)
+  blobServer.on('error', fatalError)
+  blobServer.listen(7778)
 }
 
 // server-setup error handler
 function fatalError (e) {
   if (e.code === 'EADDRINUSE')
-    console.error('\nError: port '+e.port+' isn\'t available. Is ssb-web-server already running?\n')
+    console.error('\nError: port '+e.port+' isn\'t available. Is the application already running?\n')
   else
     console.error(e.stack || e.toString())
   process.exit(1)

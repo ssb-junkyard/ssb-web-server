@@ -10,8 +10,59 @@ module.exports = function (conf) {
       return 'http://localhost:7777/'
     },
 
-    getServePath: function () {
-      return path.join(__dirname, 'www')
+    getTrustedServePath: function () {
+      return conf.trustedServePath
+    },
+    getUserlandServePath: function () {
+      return conf.userlandServePath
+    },
+
+    getTrustedPerms: function () {
+      return null
+    },
+    getUserlandPerms: function () {
+      return { allow: [
+        'whoami',
+        'get',
+        'publish',
+        'createFeedStream',
+        'createLogStream',
+        'messagesByType',
+        'createHistoryStream',
+        'createUserStream',
+        'links',
+        'relatedMessages',
+        'latest',
+        'getLatest',
+        'latestSequence',
+        'blobs.get',
+        'blobs.has',
+        // 'blobs.add'
+        // 'blobs.rm',
+        'blobs.ls',
+        // 'blobs.want',
+        // 'blobs.wants',
+        'blobs.changes'
+        // 'private.publish',
+        // 'private.unbox'
+      ] }
+    },
+
+    getTrustedManifest: function (sbot) {
+      return sbot.manifest()
+    },
+    getUserlandManifest: function (sbot) {
+      var manifest = sbot.manifest(sbot)
+      var manifest2 = {}
+
+      // filter the manifest with the permissions
+      var u = require('muxrpc/util')
+      oracle.getUserlandPerms().allow.forEach(function (path) {
+        path = path.split('.')
+        u.set(manifest2, path, u.get(manifest, path))
+      })
+
+      return manifest2
     },
 
     allowRemoteAccess: function () {

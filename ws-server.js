@@ -2,28 +2,24 @@ var muxrpc = require('muxrpc')
 var pull = require('pull-stream')
 var Serializer = require('pull-serializer')
 
-module.exports = function (sbot, opts) {
-  // fetch manifest and id
-  var manifest = {}, id = null
-  sbot.whoami(function (err, res) { id = res.id })
-  sbot.manifest(function (err, m) { 
-    manifest = m
-
-    // HACK
-    // if `sbot` is an rpc connection, then methods it views as 'sync' dont correctly relay
-    // changing their manifest entries to 'async' solves this
-    // -prf
-    for (var k in manifest)
-      if (manifest[k] === 'sync')
-        manifest[k] = 'async'
-  })
+module.exports.Trusted = function (sbot, config) {
+  var manifest = config.getTrustedManifest(sbot)
+  var perms = config.getTrustedPerms()
 
   return function (stream) {
-    // create rpc object
-    var rpc = muxrpc({}, manifest, serialize)(sbot)
-    rpc.authorized = { id: id, role: 'master' }
+    // create rpc stream
+    var rpc = muxrpc({}, manifest, serialize)(sbot, perms)
+    pull(stream, rpc.createStream(), stream)
+  }
+}
 
-    // start the stream
+module.exports.Userland = function (sbot, config) {
+  var manifest = config.getUserlandManifest(sbot)
+  var perms = config.getUserlandPerms()
+
+  return function (stream) {
+    // create rpc stream
+    var rpc = muxrpc({}, manifest, serialize)(sbot, perms)
     pull(stream, rpc.createStream(), stream)
   }
 }
